@@ -1,26 +1,55 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { Suspense } from 'react'
+import Sidebar from './components/sidebar'
+import { Outlet, useRoutes } from 'react-router-dom'
+import { QueryClient, QueryClientProvider, useQueryErrorResetBoundary } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
+import { ErrorBoundary } from 'react-error-boundary'
+import FetchingIcon from './components/fetching-icon'
+import { routes } from './router'
 
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      suspense: true,
+      useErrorBoundary: true
+    }
+  }
+})
+const persister = createSyncStoragePersister({
+  storage: window.localStorage
+})
 function App() {
+  const { reset } = useQueryErrorResetBoundary()
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+    <ErrorBoundary
+      onReset={reset}
+      fallbackRender={({ resetErrorBoundary }) => (
+        <div>
+          There was an error!
+          <button className="bg-red-400 rounded-md ml-4" onClick={() => resetErrorBoundary()}>
+            Try again
+          </button>
+        </div>
+      )}
+    >
+      <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
+        {/* <QueryClientProvider client={queryClient}> */}
+        <div className="App">
+          <div className="flex">
+            <Sidebar></Sidebar>
+            <Suspense fallback={<div>fetchingoutside</div>}>
+              <div>{useRoutes(routes)}</div>
+            </Suspense>
+          </div>
+        </div>
+        <ReactQueryDevtools initialIsOpen={false} />
+        {/* </QueryClientProvider> */}
+      </PersistQueryClientProvider>
+    </ErrorBoundary>
+  )
 }
 
-export default App;
+export default App
